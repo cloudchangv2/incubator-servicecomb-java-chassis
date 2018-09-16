@@ -49,10 +49,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractRestInvocation {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRestInvocation.class);
 
   public static final String UNKNOWN_OPERATION_ID = "UNKNOWN_OPERATION";
+
+  protected long start;
 
   protected RestOperationMeta restOperationMeta;
 
@@ -65,6 +66,10 @@ public abstract class AbstractRestInvocation {
   protected ProduceProcessor produceProcessor;
 
   protected List<HttpServerFilter> httpServerFilters = Collections.emptyList();
+
+  public AbstractRestInvocation() {
+    this.start = System.nanoTime();
+  }
 
   public void setHttpServerFilters(List<HttpServerFilter> httpServerFilters) {
     this.httpServerFilters = httpServerFilters;
@@ -118,7 +123,8 @@ public abstract class AbstractRestInvocation {
       return;
     }
 
-    invocation.onStart(requestEx);
+    invocation.onStart(requestEx, start);
+    invocation.getInvocationStageTrace().startSchedule();
     OperationMeta operationMeta = restOperationMeta.getOperationMeta();
 
     operationMeta.getExecutor().execute(() -> {
@@ -146,12 +152,12 @@ public abstract class AbstractRestInvocation {
   }
 
   private boolean isInQueueTimeout() {
-    return System.nanoTime() - invocation.getStartTime() >
+    return System.nanoTime() - invocation.getInvocationStageTrace().getStart() >
         CommonRestConfig.getRequestWaitInPoolTimeout() * 1_000_000;
   }
 
   protected void runOnExecutor() {
-    invocation.onStartExecute();
+    invocation.onExecuteStart();
 
     invoke();
   }
@@ -181,6 +187,7 @@ public abstract class AbstractRestInvocation {
     this.setContext();
     invocation.getHandlerContext().put(RestConst.REST_REQUEST, requestEx);
 
+    invocation.getInvocationStageTrace().startServerFiltersRequest();
     for (HttpServerFilter filter : httpServerFilters) {
       Response response = filter.afterReceiveRequest(invocation, requestEx);
       if (response != null) {
@@ -192,6 +199,7 @@ public abstract class AbstractRestInvocation {
   }
 
   protected void doInvoke() throws Throwable {
+    invocation.getInvocationStageTrace().startHandlersRequest();
     invocation.next(resp -> {
       sendResponseQuietly(resp);
     });
@@ -207,6 +215,9 @@ public abstract class AbstractRestInvocation {
   }
 
   protected void sendResponseQuietly(Response response) {
+    if (invocation != null) {
+      invocation.getInvocationStageTrace().finishHandlersResponse();
+    }
     try {
       sendResponse(response);
     } catch (Throwable e) {
@@ -239,6 +250,10 @@ public abstract class AbstractRestInvocation {
         new HttpServerFilterBeforeSendResponseExecutor(httpServerFilters, invocation, responseEx);
     CompletableFuture<Void> future = exec.run();
     future.whenComplete((v, e) -> {
+      if (invocation != null) {
+        invocation.getInvocationStageTrace().finishServerFiltersResponse();
+      }
+
       onExecuteHttpServerFiltersFinish(response, e);
     });
   }

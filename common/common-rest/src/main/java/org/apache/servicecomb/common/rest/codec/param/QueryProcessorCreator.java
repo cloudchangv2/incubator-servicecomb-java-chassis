@@ -35,8 +35,12 @@ public class QueryProcessorCreator implements ParamValueProcessorCreator {
   public static final String PARAMTYPE = "query";
 
   public static class QueryProcessor extends AbstractParamProcessor {
+    // This configuration is used for temporary use only. Do not use it if you are sure how it works. And may be deleted in future.
     private boolean emptyAsNull = DynamicPropertyFactory.getInstance()
         .getBooleanProperty("servicecomb.rest.parameter.query.emptyAsNull", false).get();
+    // This configuration is used for temporary use only. Do not use it if you are sure how it works. And may be deleted in future.
+    private boolean ignoreDefaultValue = DynamicPropertyFactory.getInstance()
+        .getBooleanProperty("servicecomb.rest.parameter.query.ignoreDefaultValue", false).get();
 
     public QueryProcessor(String paramPath, JavaType targetType, Object defaultValue) {
       super(paramPath, targetType, defaultValue);
@@ -57,7 +61,7 @@ public class QueryProcessorCreator implements ParamValueProcessorCreator {
         }
         if (value == null) {
           Object defaultValue = getDefaultValue();
-          if (defaultValue != null) {
+          if (!ignoreDefaultValue && defaultValue != null) {
             value = defaultValue;
           }
         }

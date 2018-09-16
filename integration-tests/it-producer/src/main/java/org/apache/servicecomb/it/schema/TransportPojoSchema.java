@@ -1,4 +1,4 @@
-package org.apache.servicecomb.it.testcase.support;/*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,11 +14,20 @@ package org.apache.servicecomb.it.testcase.support;/*
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.servicecomb.it.schema;
 
-public interface DataTypePojoIntf {
-  String checkTransport();
+import javax.servlet.http.HttpServletRequest;
 
-  int intBody(int input);
+import org.apache.servicecomb.core.Const;
+import org.apache.servicecomb.provider.pojo.RpcSchema;
+import org.apache.servicecomb.provider.rest.common.InvocationToHttpServletRequest;
 
-  int reduce(int a, int b);
+import io.swagger.annotations.SwaggerDefinition;
+
+@RpcSchema(schemaId = "transportPojo")
+@SwaggerDefinition(basePath = "/v1/transportPojo")
+public class TransportPojoSchema {
+  public String checkTransport(HttpServletRequest request) {
+    return request instanceof InvocationToHttpServletRequest ? Const.HIGHWAY : Const.RESTFUL;
+  }
 }

@@ -38,7 +38,9 @@ import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.type.SimpleType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.netflix.config.DynamicPropertyFactory;
 
 import io.swagger.models.parameters.Parameter;
 import io.vertx.core.buffer.Buffer;
@@ -48,6 +50,12 @@ public class BodyProcessorCreator implements ParamValueProcessorCreator {
   private static final Logger LOGGER = LoggerFactory.getLogger(BodyProcessorCreator.class);
 
   public static final String PARAMTYPE = "body";
+
+  private static final JavaType OBJECT_TYPE = SimpleType.constructUnsafe(Object.class);
+
+  // This configuration is used for temporary use only. Do not use it if you are sure how it works. And may be deleted in future.
+  private static boolean decodeAsObject = DynamicPropertyFactory.getInstance()
+      .getBooleanProperty("servicecomb.rest.parameter.decodeAsObject", false).get();
 
   public static class BodyProcessor implements ParamValueProcessor {
     protected JavaType targetType;
@@ -88,14 +96,19 @@ public class BodyProcessorCreator implements ParamValueProcessorCreator {
       }
 
       try {
+        if (decodeAsObject) {
+          return RestObjectMapperFactory.getRestObjectMapper()
+              .readValue(inputStream, OBJECT_TYPE);
+        }
         return RestObjectMapperFactory.getRestObjectMapper()
             .readValue(inputStream, targetType);
       } catch (MismatchedInputException e) {
         // there is no way to detect InputStream is empty, so have to catch the exception
-        if (!isRequired) {
-          LOGGER.warn("Mismatched content and required is false, taken as null. Msg=" + e.getMessage());
+        if (!isRequired && e.getMessage().contains("No content to map due to end-of-input")) {
+          LOGGER.info("Empty content and required is false, taken as null");
           return null;
         }
+        LOGGER.warn("Mismatched content. Msg=" + e.getMessage());
         throw e;
       }
     }

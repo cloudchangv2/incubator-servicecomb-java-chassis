@@ -64,11 +64,14 @@ public class HighwayServerInvoke {
 
   Invocation invocation;
 
+  protected long start;
+
   public HighwayServerInvoke() {
     this(null, null);
   }
 
   public HighwayServerInvoke(Endpoint endpoint, ProtobufFeature protobufFeature) {
+    this.start = System.nanoTime();
     this.endpoint = endpoint;
     this.protobufFeature = protobufFeature;
   }
@@ -123,22 +126,26 @@ public class HighwayServerInvoke {
   }
 
   private boolean isInQueueTimeout() {
-    return System.nanoTime() - invocation.getStartTime() >
+    return System.nanoTime() - invocation.getInvocationStageTrace().getStart() >
         HighwayConfig.getRequestWaitInPoolTimeout() * 1_000_000;
   }
 
   private void doRunInExecutor() throws Exception {
-    invocation.onStartExecute();
+    invocation.onExecuteStart();
 
+    invocation.getInvocationStageTrace().startServerFiltersRequest();
     HighwayCodec.decodeRequest(invocation, header, operationProtobuf, bodyBuffer, protobufFeature);
     invocation.getHandlerContext().put(Const.REMOTE_ADDRESS, this.connection.getNetSocket().remoteAddress());
 
+    invocation.getInvocationStageTrace().startHandlersRequest();
     invocation.next(response -> {
       sendResponse(invocation.getContext(), response);
     });
   }
 
   private void sendResponse(Map<String, String> context, Response response) {
+    invocation.getInvocationStageTrace().finishHandlersResponse();
+
     ResponseHeader header = new ResponseHeader();
     header.setStatusCode(response.getStatusCode());
     header.setReasonPhrase(response.getReasonPhrase());
@@ -153,6 +160,7 @@ public class HighwayServerInvoke {
 
     try {
       Buffer respBuffer = HighwayCodec.encodeResponse(msgId, header, bodySchema, body, protobufFeature);
+      invocation.getInvocationStageTrace().finishServerFiltersResponse();
       connection.write(respBuffer.getByteBuf());
     } catch (Exception e) {
       // 没招了，直接打日志
@@ -175,7 +183,8 @@ public class HighwayServerInvoke {
       invocation = InvocationFactory.forProvider(endpoint,
           operationProtobuf.getOperationMeta(),
           null);
-      invocation.onStart();
+      invocation.onStart(null, start);
+      invocation.getInvocationStageTrace().startSchedule();
       operationMeta.getExecutor().execute(() -> runInExecutor());
     } catch (IllegalStateException e) {
       sendResponse(header.getContext(), Response.providerFailResp(e));

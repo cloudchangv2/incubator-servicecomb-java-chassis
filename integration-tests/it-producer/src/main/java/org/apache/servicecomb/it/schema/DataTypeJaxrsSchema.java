@@ -16,10 +16,7 @@
  */
 package org.apache.servicecomb.it.schema;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.CookieParam;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -27,99 +24,94 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
 
 import org.apache.servicecomb.provider.rest.common.RestSchema;
 
 @RestSchema(schemaId = "dataTypeJaxrs")
 @Path("/v1/dataTypeJaxrs")
-public class DataTypeJaxrs {
-  private DataTypePojo pojo = new DataTypePojo();
-
-  public void test(HttpServletRequest request, HttpServletResponse response) {
-
-  }
-
-  @Path("checkTransport")
-  @GET
-  public String checkTransport(HttpServletRequest request) {
-    return pojo.checkTransport(request);
-  }
-
+public class DataTypeJaxrsSchema {
   @Path("intPath/{input}")
   @GET
   public int intPath(@PathParam("input") int input) {
-    return pojo.intBody(input);
+    return input;
   }
 
   @Path("intQuery")
   @GET
   public int intQuery(@QueryParam("input") int input) {
-    return pojo.intBody(input);
+    return input;
   }
 
   @Path("intHeader")
   @GET
   public int intHeader(@HeaderParam("input") int input) {
-    return pojo.intBody(input);
+    return input;
   }
 
   @Path("intCookie")
   @GET
   public int intCookie(@CookieParam("input") int input) {
-    return pojo.intBody(input);
+    return input;
   }
 
   @Path("intForm")
   @POST
-  public int intForm(@FormParam("a") int a) {
-    return pojo.intBody(a);
+  public int intForm(@FormParam("input") int input) {
+    return input;
   }
-
 
   @Path("intBody")
   @POST
   public int intBody(int input) {
-    return pojo.intBody(input);
+    return input;
   }
 
+  @Path("add")
   @GET
-  public int defaultPath() {
-    return pojo.intBody(100);
+  public int add(@QueryParam("num1") int num1, @QueryParam("num2") int num2) {
+    return num1 + num2;
   }
 
-
-  @Path("intQueryWithDefault")
+  //strinnum1
+  @Path("stringPath/{input}")
   @GET
-  public int intQueryWithDefault(@QueryParam("input") @DefaultValue("13") int input) {
-    return pojo.intBody(input);
+  public String stringPath(@PathParam("input") String input) {
+    return input;
   }
 
-  @Path("intHeaderWithDefault")
+  @Path("stringQuery")
   @GET
-  public int intHeaderWithDefault(@HeaderParam(value = "input") @DefaultValue("13") int input) {
-    return pojo.intBody(input);
+  public String stringQuery(@QueryParam("input") String input) {
+    return input;
   }
 
-  //暂时不支持 cookie设置默认值,但是不影响先放这里
-  @Path("intCookieWithDefault")
+  @Path("stringHeader")
   @GET
-  public int intCookieWithDefault(@CookieParam(value = "input") @DefaultValue("13") int input) {
-    return pojo.intBody(input);
+  public String stringHeader(@HeaderParam("input") String input) {
+    return input;
   }
 
-  @Path("intFormWithDefault")
+  @Path("stringCookie")
+  @GET
+  public String stringCookie(@CookieParam("input") String input) {
+    return input;
+  }
+
+  @Path("stringForm")
   @POST
-  public int intFormWithDefault(@FormParam("a") @DefaultValue("13") int a) {
-    return pojo.intBody(a);
+  public String stringForm(@FormParam("input") String input) {
+    return input;
   }
 
-  //这个是伪契约,不支持 highway
-  @Path("request")
+  @Path("stringBody")
+  @POST
+  public String stringBody(String input) {
+    return input;
+  }
+
+  @Path("stringConcat")
   @GET
-  public int request(@Context HttpServletRequest request) {
-    int a = Integer.parseInt(request.getParameter("a"));
-    int b = Integer.parseInt(request.getParameter("b"));
-    return a - b;
+  public String stringConcat(@QueryParam("str1") String str1, @QueryParam("str2") String str2) {
+    return str1 + str2;
   }
 }

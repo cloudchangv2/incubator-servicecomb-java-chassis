@@ -1,4 +1,4 @@
-package org.apache.servicecomb.it.testcase.support;/*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -15,42 +15,21 @@ package org.apache.servicecomb.it.testcase.support;/*
  * limitations under the License.
  */
 
-public interface DataTypeRestIntf {
-  String checkTransport();
+package org.apache.servicecomb.it.testcase.base;
 
-  int intPath(int input);
+import static org.junit.Assert.assertEquals;
 
-  int intQuery(int input);
+import org.apache.servicecomb.it.extend.engine.GateRestTemplate;
+import org.junit.Test;
+import org.springframework.web.client.RestTemplate;
 
-  int intHeader(int input);
+public class TestParamCodecEdge {
+  static RestTemplate rt = GateRestTemplate.createEdgeRestTemplate("paramCodec");
 
-  int intCookie(int input);
-
-  int intBody(int input);
-
-  int intForm(int a);
-
-  int intAttribute(int a);
-
-  int intAdd(int a, int b);
-
-  int intPostAdd(int a, int b);
-
-  int defaultPath();
-
-  int intPathWithMinMax(int input);
-
-  int intQueryWithMinMax(int input);
-
-  int intHeaderWithMinMax(int input);
-
-  int intCookieWithMinMax(int input);
-
-  int intFormWithMinMax(int input);
-
-  int intAttributeWithMinMax(int input);
-
-  int intBodyWithMinMax(int input);
-
-  String intMulti(int a, int b, int c, int d, int e);
+  @Test
+  public void spaceCharEncode() {
+    String paramString = "a%2B+%20b%% %20c";
+    String result = rt.getForObject("/spaceCharCodec/" + paramString + "?q=" + paramString, String.class);
+    assertEquals(paramString + " +%20%% " + paramString + " true", result);
+  }
 }

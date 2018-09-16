@@ -21,6 +21,9 @@ import java.util.Arrays;
 import javax.xml.ws.Holder;
 
 import org.apache.servicecomb.core.definition.OperationMeta;
+import org.apache.servicecomb.core.event.InvocationBaseEvent;
+import org.apache.servicecomb.core.event.InvocationBusinessMethodFinishEvent;
+import org.apache.servicecomb.core.event.InvocationBusinessMethodStartEvent;
 import org.apache.servicecomb.core.event.InvocationFinishEvent;
 import org.apache.servicecomb.core.event.InvocationStartEvent;
 import org.apache.servicecomb.core.provider.consumer.ReferenceConfig;
@@ -56,7 +59,7 @@ public class TestInvocation {
   @Mocked
   Object[] swaggerArguments;
 
-  static long currentNanoTime = 123;
+  static long nanoTime = 123;
 
   @BeforeClass
   public static void classSetup() {
@@ -67,7 +70,7 @@ public class TestInvocation {
     new MockUp<System>() {
       @Mock
       long nanoTime() {
-        return currentNanoTime;
+        return nanoTime;
       }
     };
   }
@@ -91,10 +94,10 @@ public class TestInvocation {
     EventManager.register(subscriber);
 
     Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
-    invocation.onStart();
+    invocation.onStart(nanoTime);
 
-    Assert.assertEquals(currentNanoTime, result.value.getStartTime());
     Assert.assertSame(invocation, result.value);
+    Assert.assertEquals(nanoTime, invocation.getInvocationStageTrace().getStart());
 
     EventManager.unregister(subscriber);
   }
@@ -104,13 +107,13 @@ public class TestInvocation {
     mockNonaTime();
 
     Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
-    invocation.onStartExecute();
+    invocation.onExecuteStart();
 
-    Assert.assertEquals(currentNanoTime, invocation.getStartExecutionTime());
+    Assert.assertEquals(nanoTime, invocation.getInvocationStageTrace().getStartExecution());
   }
 
   @Test
-  public void onFinish(@Mocked Response response) {
+  public void onFinish() {
     mockNonaTime();
 
     Holder<InvocationFinishEvent> result = new Holder<>();
@@ -123,11 +126,19 @@ public class TestInvocation {
     EventManager.register(subscriber);
 
     Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
+    Assert.assertFalse(invocation.isFinished());
+    Response response = Response.succResp(null);
     invocation.onFinish(response);
 
-    Assert.assertEquals(currentNanoTime, result.value.getNanoCurrent());
+    Assert.assertEquals(nanoTime, result.value.getNanoCurrent());
     Assert.assertSame(invocation, result.value.getInvocation());
     Assert.assertSame(response, result.value.getResponse());
+    Assert.assertTrue(invocation.isFinished());
+
+    // should not post event again
+    InvocationFinishEvent oldEvent = result.value;
+    invocation.onFinish(null);
+    Assert.assertSame(oldEvent, result.value);
 
     EventManager.unregister(subscriber);
   }
@@ -158,7 +169,7 @@ public class TestInvocation {
     Invocation invocation = new Invocation(referenceConfig, operationMeta, swaggerArguments);
     invocation.addContext(Const.TRACE_ID_NAME, "abc");
 
-    invocation.onStart();
+    invocation.onStart(0);
 
     Assert.assertEquals("abc", invocation.getTraceId());
     Assert.assertEquals("abc", invocation.getTraceId(Const.TRACE_ID_NAME));
@@ -175,7 +186,7 @@ public class TestInvocation {
     };
     Invocation invocation = new Invocation(referenceConfig, operationMeta, swaggerArguments);
 
-    invocation.onStart();
+    invocation.onStart(0);
 
     Assert.assertEquals("abc", invocation.getTraceId());
     Assert.assertEquals("abc", invocation.getTraceId(Const.TRACE_ID_NAME));
@@ -191,7 +202,7 @@ public class TestInvocation {
     };
     Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
 
-    invocation.onStart(requestEx);
+    invocation.onStart(requestEx, 0);
 
     Assert.assertEquals("abc", invocation.getTraceId());
     Assert.assertEquals("abc", invocation.getTraceId(Const.TRACE_ID_NAME));
@@ -208,7 +219,7 @@ public class TestInvocation {
     };
     Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
 
-    invocation.onStart(requestEx);
+    invocation.onStart(requestEx, 0);
 
     Assert.assertEquals("abc", invocation.getTraceId());
     Assert.assertEquals("abc", invocation.getTraceId(Const.TRACE_ID_NAME));
@@ -237,5 +248,50 @@ public class TestInvocation {
     };
 
     Assert.assertThat(Invocation.loadTraceIdGenerators(), Matchers.contains(gen1, gen3));
+  }
+
+  InvocationBaseEvent invocationBaseEvent;
+
+  @Test
+  public void onBusinessMethodStart() {
+    Object listener = new Object() {
+      @Subscribe
+      public void onBusinessMethodStart(InvocationBusinessMethodStartEvent event) {
+        invocationBaseEvent = event;
+      }
+    };
+    EventManager.getEventBus().register(listener);
+    Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
+    mockNonaTime();
+    invocation.onBusinessMethodStart();
+    EventManager.getEventBus().unregister(listener);
+
+    Assert.assertSame(invocation, invocationBaseEvent.getInvocation());
+    Assert.assertEquals(nanoTime, invocation.getInvocationStageTrace().getStartBusinessMethod());
+  }
+
+  @Test
+  public void onBusinessMethodFinish() {
+    Object listener = new Object() {
+      @Subscribe
+      public void onBusinessMethodStart(InvocationBusinessMethodFinishEvent event) {
+        invocationBaseEvent = event;
+      }
+    };
+    EventManager.getEventBus().register(listener);
+    Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
+    invocation.onBusinessMethodFinish();
+    EventManager.getEventBus().unregister(listener);
+
+    Assert.assertSame(invocation, invocationBaseEvent.getInvocation());
+  }
+
+  @Test
+  public void onBusinessFinish() {
+    Invocation invocation = new Invocation(endpoint, operationMeta, swaggerArguments);
+    mockNonaTime();
+    invocation.onBusinessFinish();
+
+    Assert.assertEquals(nanoTime, invocation.getInvocationStageTrace().getFinishBusiness());
   }
 }

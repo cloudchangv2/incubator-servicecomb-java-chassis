@@ -1,4 +1,4 @@
-package org.apache.servicecomb.it.testcase.support;/*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,9 +14,39 @@ package org.apache.servicecomb.it.testcase.support;/*
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.servicecomb.it.schema;
 
-public enum ProducerDevMode {
-  Pojo,
-  Jaxrs,
-  Springmvc
+import java.util.ArrayList;
+import java.util.List;
+
+public class DefaultJsonValueRequest {
+  private int type;
+
+  private Integer defaultValue = 30;
+
+  private List<String> items = new ArrayList<>();
+
+  public int getType() {
+    return type;
+  }
+
+  public void setType(int type) {
+    this.type = type;
+  }
+
+  public Integer getDefaultValue() {
+    return defaultValue;
+  }
+
+  public void setDefaultValue(Integer defaultValue) {
+    this.defaultValue = defaultValue;
+  }
+
+  public List<String> getItems() {
+    return items;
+  }
+
+  public void setItems(List<String> items) {
+    this.items = items;
+  }
 }

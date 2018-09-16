@@ -25,8 +25,11 @@ import java.util.concurrent.Executor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.servicecomb.core.definition.OperationMeta;
 import org.apache.servicecomb.core.definition.SchemaMeta;
+import org.apache.servicecomb.core.event.InvocationBusinessMethodFinishEvent;
+import org.apache.servicecomb.core.event.InvocationBusinessMethodStartEvent;
 import org.apache.servicecomb.core.event.InvocationFinishEvent;
 import org.apache.servicecomb.core.event.InvocationStartEvent;
+import org.apache.servicecomb.core.invocation.InvocationStageTrace;
 import org.apache.servicecomb.core.provider.consumer.ReferenceConfig;
 import org.apache.servicecomb.core.tracing.TraceIdGenerator;
 import org.apache.servicecomb.foundation.common.event.EventManager;
@@ -68,16 +71,24 @@ public class Invocation extends SwaggerInvocation {
   // 同步模式：避免应答在网络线程中处理解码等等业务级逻辑
   private Executor responseExecutor;
 
-  private long startTime;
-
-  private long startExecutionTime;
-
   private boolean sync = true;
+
+  private InvocationStageTrace invocationStageTrace = new InvocationStageTrace(this);
 
   private HttpServletRequestEx requestEx;
 
+  private boolean finished;
+
+  // not extend InvocationType
+  // because isEdge() only affect to apm/metrics output, no need to change so many logic
+  private boolean edge;
+
   public HttpServletRequestEx getRequestEx() {
     return requestEx;
+  }
+
+  public InvocationStageTrace getInvocationStageTrace() {
+    return invocationStageTrace;
   }
 
   public String getTraceId() {
@@ -88,12 +99,14 @@ public class Invocation extends SwaggerInvocation {
     return getContext(traceIdName);
   }
 
+  @Deprecated
   public long getStartTime() {
-    return startTime;
+    return invocationStageTrace.getStart();
   }
 
+  @Deprecated
   public long getStartExecutionTime() {
-    return startExecutionTime;
+    return invocationStageTrace.getStartExecution();
   }
 
   public Invocation(ReferenceConfig referenceConfig, OperationMeta operationMeta, Object[] swaggerArguments) {
@@ -185,6 +198,9 @@ public class Invocation extends SwaggerInvocation {
   }
 
   public String getConfigTransportName() {
+    if (operationMeta.getTransport() != null) {
+      return operationMeta.getTransport();
+    }
     return referenceConfig.getTransport();
   }
 
@@ -242,23 +258,50 @@ public class Invocation extends SwaggerInvocation {
     addContext(traceIdGenerator.getTraceIdKeyName(), traceIdGenerator.generate());
   }
 
-  public void onStart() {
-    this.startTime = System.nanoTime();
+  public void onStart(long start) {
+    invocationStageTrace.start(start);
     initTraceId();
     EventManager.post(new InvocationStartEvent(this));
   }
 
-  public void onStart(HttpServletRequestEx requestEx) {
+  public void onStart(HttpServletRequestEx requestEx, long start) {
     this.requestEx = requestEx;
-    onStart();
+    onStart(start);
   }
 
-  public void onStartExecute() {
-    this.startExecutionTime = System.nanoTime();
+  public void onExecuteStart() {
+    invocationStageTrace.startExecution();
+  }
+
+  @Override
+  public void onBusinessMethodStart() {
+    invocationStageTrace.startBusinessMethod();
+    EventManager.post(new InvocationBusinessMethodStartEvent(this));
+  }
+
+  @Override
+  public void onBusinessMethodFinish() {
+    EventManager.post(new InvocationBusinessMethodFinishEvent(this));
+  }
+
+  @Override
+  public void onBusinessFinish() {
+    invocationStageTrace.finishBusiness();
   }
 
   public void onFinish(Response response) {
+    if (finished) {
+      // avoid to post repeated event
+      return;
+    }
+
+    invocationStageTrace.finish();
     EventManager.post(new InvocationFinishEvent(this, response));
+    finished = true;
+  }
+
+  public boolean isFinished() {
+    return finished;
   }
 
   public boolean isSync() {
@@ -271,5 +314,13 @@ public class Invocation extends SwaggerInvocation {
 
   public boolean isConsumer() {
     return InvocationType.CONSUMER.equals(invocationType);
+  }
+
+  public boolean isEdge() {
+    return edge;
+  }
+
+  public void setEdge(boolean edge) {
+    this.edge = edge;
   }
 }

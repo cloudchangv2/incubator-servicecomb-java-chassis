@@ -14,32 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.servicecomb.it.schema;
+package org.apache.servicecomb.core.event;
 
-import javax.servlet.http.HttpServletRequest;
+import org.apache.servicecomb.core.Invocation;
 
-import org.apache.servicecomb.core.Const;
-import org.apache.servicecomb.provider.pojo.RpcSchema;
-import org.apache.servicecomb.provider.rest.common.InvocationToHttpServletRequest;
-
-import io.swagger.annotations.SwaggerDefinition;
-
-@RpcSchema(schemaId = "dataTypePojo")
-@SwaggerDefinition(basePath = "/v1/dataTypePojo")
-public class DataTypePojo {
-  public String checkTransport(HttpServletRequest request) {
-    if (request instanceof InvocationToHttpServletRequest) {
-      return Const.HIGHWAY;
-    }
-
-    return Const.RESTFUL;
-  }
-
-  public int intBody(int input) {
-    return input;
-  }
-
-  public int reduce(int a, int b) {
-    return a - b;
+public class InvocationBusinessMethodStartEvent extends InvocationBaseEvent {
+  public InvocationBusinessMethodStartEvent(Invocation invocation) {
+    super(invocation);
   }
 }

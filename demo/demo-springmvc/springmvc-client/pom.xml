@@ -49,6 +49,15 @@
       <groupId>org.apache.servicecomb</groupId>
       <artifactId>handler-fault-injection</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.servicecomb.demo</groupId>
+      <artifactId>demo-signature</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.servicecomb</groupId>
+      <artifactId>foundation-test-scaffolding</artifactId>
+    </dependency>
   </dependencies>
 
   <properties>
